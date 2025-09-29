@@ -1,4 +1,5 @@
 ﻿using BfresLibrary.Core;
+using System;
 using System.Linq;
 
 namespace BfresLibrary
@@ -39,6 +40,9 @@ namespace BfresLibrary
             Stride = loader.ReadUInt16();
             ushort numBuffering = loader.ReadUInt16();
             uint contextPointer = loader.ReadUInt32();
+
+            // Ensure buffer count is atleast 1. Some versions may ignore this
+            numBuffering = (ushort)Math.Max((int)numBuffering, 1);
 
             Data = loader.LoadCustom(() =>
             {
