@@ -1743,7 +1743,7 @@ namespace BfresLibrary.Switch.Core
                 EntryPos = SectionSize;
                 MemPoolSect = new RelocationSection(EntryPos, EntryIndex, 0, _savedSection4Entries);
             }
-            EntryIndex += _savedSection3Entries.Count;
+
             if (ResFile.ExternalFiles.Count > 0)  //Setup Section 5
             {
                 EntryPos = _ofsExternalFileBlock;
@@ -1753,7 +1753,7 @@ namespace BfresLibrary.Switch.Core
             }
             else
                 ExtFileSect = new RelocationSection(EntryPos, EntryIndex, 0, _savedSection5Entries);
-            EntryIndex += _savedSection4Entries.Count;
+
 
             _savedRelocatedSections.Add(ResFileSect);
             _savedRelocatedSections.Add(ResIndexSect);
