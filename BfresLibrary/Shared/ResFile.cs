@@ -196,22 +196,22 @@ namespace BfresLibrary
         /// <summary>
         /// Gets or sets the flag. Unknown purpose.
         /// </summary>
-        internal uint Flag { get; set; }
+        public uint Flag { get; set; }
 
         /// <summary>
         /// Gets or sets the BlockOffset. 
         /// </summary>
-        internal uint BlockOffset { get; set; }
+        public uint BlockOffset { get; set; }
 
         /// <summary>
         /// Gets or sets the stored <see cref="MemoryPool"/> instances. 
         /// </summary>
-        internal MemoryPool MemoryPool { get; set; }
+        public MemoryPool MemoryPool { get; set; }
 
         /// <summary>
         /// Gets or sets the stored <see cref="BufferInfo"/> instances.
         /// </summary>
-        internal BufferInfo BufferInfo { get; set; }
+        public BufferInfo BufferInfo { get; set; }
 
         internal StringTable StringTable { get; set; }
 
