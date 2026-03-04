@@ -856,6 +856,17 @@ namespace BfresLibrary.Switch.Core
 
             if (skl.Bones.Count > 0)
             {
+                // The RLT marks MatrixToBoneList and InverseModelMatrices offsets as
+                // relocatable pointers (4 consecutive ptrs starting at FSKL+0x10).
+                // If left as NULL (0x0), the runtime's relocation adds the section base
+                // to 0, creating corrupt pointers. The testfire binary always writes
+                // valid non-NULL offsets for these (pointing to BoneDict), even when
+                // the lists are empty. Match that pattern here.
+                if (skl.MatrixToBoneList.Count == 0)
+                    WriteOffset(skl.PosMatrixToBoneListOffset);
+                if (skl.InverseModelMatrices.Count == 0)
+                    WriteOffset(skl.PosInverseModelMatricesOffset);
+
                 WriteOffset(skl.PosBoneDictOffset);
                 ((IResData)skl.Bones).Save(this);
             }
@@ -922,6 +933,20 @@ namespace BfresLibrary.Switch.Core
                 else
                     Write(shp.RadiusArray);
             }
+
+            // Fix NULL pointers for empty lists that the runtime doesn't check:
+            // The FSHP RLT entry registers 8 consecutive pointer fields. Any left
+            // as 0 gets relocated to the FRES base address, creating corrupt pointers.
+            // The testfire binary always writes valid non-NULL offsets for SkinBoneIndices,
+            // SubMeshBoundings, and RadiusArray even when empty. Match that pattern.
+            // (KeyShapes/KeyShapeDict are legitimately NULL in testfire when count=0.)
+            if (shp.SkinBoneIndices.Count == 0)
+                WriteOffset(shp.PosSkinBoneIndicesOffset);
+            if (shp.SubMeshBoundings.Count == 0)
+                WriteOffset(shp.PosSubMeshBoundingsOffset);
+            if (shp.RadiusArray.Count == 0)
+                WriteOffset(shp.PosRadiusArrayOffset);
+
             foreach (Mesh msh in shp.Meshes)
             {
                 Align(8);

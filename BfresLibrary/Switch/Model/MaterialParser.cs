@@ -86,7 +86,13 @@ namespace BfresLibrary.Switch
             if (saver.ResFile.VersionMajor2 >= 9)
                 saver.Write(mat.Flags, true);
             else
-                saver.Seek(12);
+            {
+                // V5/V8: Write FMAT HeaderBlock with the correct material stride.
+                // Testfire binary has size=0xB8(184) offset=0xB8(184).
+                // saver.Seek(12) wrote zeros, causing runtime crash (undersized allocation).
+                saver.Write((uint)0xB8);   // HeaderBlock size = material stride
+                saver.Write((long)0xB8);   // HeaderBlock offset = material stride
+            }
 
             if (saver.ResFile.VersionMajor2 >= 10)
             {
