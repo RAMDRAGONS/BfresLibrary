@@ -853,7 +853,7 @@ namespace BfresLibrary.Switch.Core
                 this.Write(skl.InverseModelMatrices);
             }
 
-            if (skl.MirroredBoneIndices?.Length > 0)
+            if (skl.MirroredBoneIndices?.Length > 0 && ResFile.VersionMajor >= 8)
             {
                 Align(8);
                 WriteOffset(skl.PosMirroredIndexTablePointer);

@@ -121,10 +121,12 @@ namespace BfresLibrary
                 long userPointer = loader.ReadInt64();
                 long mirrorTablePointer = 0;
 
-                if (loader.ResFile.VersionMajor == 8)
-                    loader.Seek(16);
-                if (loader.ResFile.VersionMajor >= 9)
+                // The mirroring bone table pointer follows the user pointer from 8.0, with 8 reserved bytes after
+                // it until 9.0.
+                if (loader.ResFile.VersionMajor >= 8)
                     mirrorTablePointer = loader.ReadInt64();
+                if (loader.ResFile.VersionMajor == 8)
+                    loader.Seek(8);
 
                 if (loader.ResFile.VersionMajor < 9)
                     _flags = loader.ReadUInt32();
@@ -174,13 +176,15 @@ namespace BfresLibrary
                 PosBoneArrayOffset = saver.SaveOffset();
                 PosMatrixToBoneListOffset = saver.SaveOffset();
                 PosInverseModelMatricesOffset = saver.SaveOffset();
-                if (saver.ResFile.VersionMajor == 8)
-                    saver.Seek(16);
-                if (saver.ResFile.VersionMajor >= 9)
-                    saver.Seek(8);
+                saver.Write(0L); // UserPointer
 
-                ((Switch.Core.ResFileSwitchSaver)saver).SaveRelocateEntryToSection(saver.Position, 1, 1, 0, Switch.Core.ResFileSwitchSaver.Section1, "FSKL UserPointer");
-                PosMirroredIndexTablePointer = saver.SaveOffset();// UserPointer
+                if (saver.ResFile.VersionMajor >= 8)
+                {
+                    ((Switch.Core.ResFileSwitchSaver)saver).SaveRelocateEntryToSection(saver.Position, 1, 1, 0, Switch.Core.ResFileSwitchSaver.Section1, "FSKL mirroring bone table");
+                    PosMirroredIndexTablePointer = saver.SaveOffset();
+                }
+                if (saver.ResFile.VersionMajor == 8)
+                    saver.Seek(8);
 
                 if (saver.ResFile.VersionMajor < 9)
                     saver.Write(_flags);
