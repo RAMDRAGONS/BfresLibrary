@@ -181,8 +181,14 @@ namespace BfresLibrary
             }
             set
             {
+                // Switch headers store the alignment as a base 2 exponent.
                 if (IsPlatformSwitch)
-                    Alignment = (uint)(value >> 7);
+                {
+                    uint shift = 0;
+                    while ((1L << (int)(shift + 1)) <= value)
+                        shift++;
+                    Alignment = shift;
+                }
                 else
                     Alignment = (uint)value;
             }
