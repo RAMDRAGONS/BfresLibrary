@@ -52,7 +52,7 @@ namespace BfresLibrary.Switch
                 buffer.Stride = (ushort)StrideArray[buff].Stride;
 
                 uint size = VertexBufferSizeArray[buff].Size;
-                using (loader.TemporarySeek(BufferInfo.BufferOffset + offset, SeekOrigin.Begin))
+                using (loader.TemporarySeek(loader.GetBufferDataOffset(vertexBuffer.MemoryPool) + offset, SeekOrigin.Begin))
                     buffer.Data[0] = loader.ReadBytes((int)size);
                 offset += AlignUp(size, vertexBuffer.GPUBufferAlignent);
                 vertexBuffer.Buffers.Add(buffer);

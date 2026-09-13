@@ -229,6 +229,17 @@ namespace BfresLibrary
         /// </summary>
         internal BufferInfo BufferInfo { get; set; }
 
+        /// <summary>
+        /// Gets or sets the memory pool holding index buffers in Switch files before 1.0, which keep vertex and
+        /// index buffers in separate pools.
+        /// </summary>
+        internal MemoryPool IndexMemoryPool { get; set; }
+
+        /// <summary>
+        /// Gets or sets the <see cref="BufferInfo"/> of <see cref="IndexMemoryPool"/>.
+        /// </summary>
+        internal BufferInfo IndexBufferInfo { get; set; }
+
         internal StringTable StringTable { get; set; }
 
         /// <summary>

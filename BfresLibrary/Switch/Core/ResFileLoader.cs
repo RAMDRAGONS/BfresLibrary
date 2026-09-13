@@ -64,6 +64,22 @@ namespace BfresLibrary.Switch.Core
 
         // ---- PROPERTIES ---------------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Gets the file offset of buffer data stored in the given <paramref name="memoryPool"/>. Buffers of files
+        /// with a single memory pool always use <see cref="BufferInfo.BufferOffset"/>.
+        /// </summary>
+        internal long GetBufferDataOffset(MemoryPool memoryPool)
+        {
+            if (ResFileParser.HasSplitMemoryPools(ResFile))
+            {
+                if (memoryPool != null && memoryPool == ResFile.IndexMemoryPool && ResFile.IndexBufferInfo != null)
+                    return ResFile.IndexBufferInfo.MemoryOffset;
+                if (memoryPool != null && memoryPool == ResFile.MemoryPool && ResFile.BufferInfo != null)
+                    return ResFile.BufferInfo.MemoryOffset;
+            }
+            return BufferInfo.BufferOffset;
+        }
+
 
         // ---- METHODS (INTERNAL) -------------------------------------------------------------------------------------
 

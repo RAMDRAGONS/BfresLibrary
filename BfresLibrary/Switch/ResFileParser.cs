@@ -37,7 +37,11 @@ namespace BfresLibrary.Switch
             resFile.ShapeAnims = loader.LoadDictValues<ShapeAnim>();
             resFile.SceneAnims = loader.LoadDictValues<SceneAnim>();
             resFile.MemoryPool = loader.Load<MemoryPool>();
+            if (HasSplitMemoryPools(resFile))
+                resFile.IndexMemoryPool = loader.Load<MemoryPool>();
             resFile.BufferInfo = loader.Load<BufferInfo>();
+            if (HasSplitMemoryPools(resFile))
+                resFile.IndexBufferInfo = loader.Load<BufferInfo>();
 
             if (loader.ResFile.VersionMajor >= 10)
             {
@@ -159,8 +163,17 @@ namespace BfresLibrary.Switch
             }
         }
 
+        /// <summary>
+        /// Switch files before 1.0 store vertex and index buffers in two memory pools, each with its own pool and
+        /// buffer info pointer in the file header.
+        /// </summary>
+        internal static bool HasSplitMemoryPools(ResFile resFile) => resFile.VersionMajor < 1;
+
         public static void Save(ResFileSwitchSaver saver, ResFile resFile)
         {
+            if (HasSplitMemoryPools(resFile))
+                throw new NotSupportedException($"Saving Switch BFRES version {resFile.VersionMajor}.{resFile.VersionMinor}.{resFile.VersionMinor2} with separate vertex and index memory pools is not supported.");
+
             if (resFile.Models.Count > 0 && resFile.Models.Values.Any(x => x.Shapes.Count > 0)) {
                 resFile.MemoryPool = new MemoryPool();
                 resFile.BufferInfo = new BufferInfo();

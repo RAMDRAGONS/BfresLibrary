@@ -206,7 +206,7 @@ namespace BfresLibrary
                 ushort padding = loader.ReadUInt16();
                 SubMeshes = loader.LoadList<SubMesh>(numSubMesh, SubMeshArrayOffset).ToList();
 
-                uint DataOffset = (uint)BufferInfo.BufferOffset + FaceBufferOffset;
+                uint DataOffset = (uint)(((Switch.Core.ResFileSwitchLoader)loader).GetBufferDataOffset(MemoryPool) + FaceBufferOffset);
 
                 //Load buffer data from mem block
                 IndexBuffer = new Buffer();

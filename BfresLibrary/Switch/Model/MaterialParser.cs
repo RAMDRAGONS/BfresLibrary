@@ -28,7 +28,9 @@ namespace BfresLibrary.Switch
 
             mat.RenderInfos = loader.LoadDictValues<RenderInfo>();
             mat.ShaderAssign = loader.Load<ShaderAssign>();
-            long TextureArrayOffset = loader.ReadInt64();
+            // Before 1.0 textures are an array of name and texture view pointer pairs instead of separate arrays.
+            bool hasTextureRefPairs = loader.ResFile.VersionMajor < 1;
+            long TextureArrayOffset = hasTextureRefPairs ? 0 : loader.ReadInt64();
             long TextureNameArray = loader.ReadInt64();
             long SamplerArrayOffset = loader.ReadInt64();
             mat.Samplers = loader.LoadDictValues<Sampler>();
@@ -54,7 +56,14 @@ namespace BfresLibrary.Switch
             if (loader.ResFile.VersionMajor < 9)
                 loader.ReadUInt32(); //Padding
 
-            var textures = loader.LoadCustom(() => loader.LoadStrings(numTextureRef), (uint)TextureNameArray);
+            var textures = hasTextureRefPairs ?
+                loader.LoadCustom(() => Enumerable.Range(0, numTextureRef).Select(i =>
+                {
+                    string name = loader.LoadString();
+                    loader.ReadInt64(); // texture view
+                    return name;
+                }).ToList(), (uint)TextureNameArray) :
+                loader.LoadCustom(() => loader.LoadStrings(numTextureRef), (uint)TextureNameArray);
 
             mat.TextureRefs = new List<TextureRef>();
             if (textures != null) {

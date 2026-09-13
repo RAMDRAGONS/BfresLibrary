@@ -104,6 +104,11 @@ namespace BfresLibrary
         public static long BufferOffset { get; set; } //Note this is temp
 
         /// <summary>
+        /// Gets the file offset of the memory this pool info describes.
+        /// </summary>
+        internal long MemoryOffset { get; private set; }
+
+        /// <summary>
         /// Gets or sets the buffer instance that stores face data
         /// </summary>
         public byte[][] VertexBufferData { get; set; }
@@ -129,7 +134,8 @@ namespace BfresLibrary
         {
             unk                 = loader.ReadUInt32();
             uint Size           = loader.ReadUInt32();
-            BufferOffset        = loader.ReadInt64();
+            MemoryOffset        = loader.ReadInt64();
+            BufferOffset        = MemoryOffset;
             byte[] padding      = loader.ReadBytes(16);
         }
 
