@@ -230,15 +230,17 @@ namespace BfresLibrary.WiiU.Core
 
             foreach (KeyValuePair<string, StringEntry> entry in sorted)
             {
-                // Align and satisfy offsets.
-                Write(entry.Key.Length);
+                // nw::g3d::ResName compares its length against byte lengths of lookup names, so it must count
+                // encoded characters rather than UTF-16 code units.
+                Encoding encoding = entry.Value.Encoding ?? Encoding;
+                Write(encoding.GetByteCount(entry.Key) / encoding.GetByteCount("\0"));
                 using (TemporarySeek())
                 {
                     SatisfyOffsets(entry.Value.Offsets, (uint)Position);
                 }
 
                 // Write the name.
-                Write(entry.Key, BinaryStringFormat.ZeroTerminated, entry.Value.Encoding ?? Encoding);
+                Write(entry.Key, BinaryStringFormat.ZeroTerminated, encoding);
                 Align(4);
             }
             BaseStream.SetLength(Position); // Workaround to make last alignment expand the file if nothing follows.
