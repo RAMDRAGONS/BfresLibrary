@@ -21,43 +21,41 @@ namespace BfresLibrary.Switch
 
             vertexBuffer.Attributes = loader.LoadDictValues<VertexAttrib>();
             vertexBuffer.MemoryPool = loader.Load<MemoryPool>();
-            long unk = loader.ReadOffset();
-            if (loader.ResFile.VersionMajor > 2)
-                loader.ReadOffset();// unk2
+            long bufferArrayOffset = loader.ReadOffset();
+            if (HasBufferPointerArray(loader.ResFile))
+                loader.ReadOffset();
             long VertexBufferSizeOffset = loader.ReadOffset();
             long VertexStrideSizeOffset = loader.ReadOffset();
-            long padding = loader.ReadInt64();
-            int BufferOffset = loader.ReadInt32();
+            long userPointer = loader.ReadInt64();
+            uint memoryPoolOffset = loader.ReadUInt32();
             byte numVertexAttrib = loader.ReadByte();
             byte numBuffer = loader.ReadByte();
             ushort Idx = loader.ReadUInt16();
             vertexBuffer.VertexCount = loader.ReadUInt32();
-            vertexBuffer.VertexSkinCount = (byte)loader.ReadUInt16();
-            if (loader.ResFile.VersionMajor >= 10)
-                vertexBuffer.GPUBufferAlignent = loader.ReadUInt16();
-            else
-                loader.ReadUInt16(); // padding
-
-            //Buffers use the index buffer offset from memory info section
-            //This goes to a section in the memory pool which stores all the buffer data, including faces
-            //To obtain a list of all the buffer data, it would be by the index buffer offset + BufferOffset
+            vertexBuffer.VertexSkinCount = loader.ReadByte();
+            loader.ReadByte(); //reserved
+            ushort alignment = loader.ReadUInt16();
+            vertexBuffer.GPUBufferAlignent = HasAlignmentField(loader.ResFile) && alignment != 0 ?
+                alignment : GetDefaultAlignment(loader.ResFile);
 
             var StrideArray = loader.LoadList<VertexBufferStride>(numBuffer, (uint)VertexStrideSizeOffset);
             var VertexBufferSizeArray = loader.LoadList<VertexBufferSize>(numBuffer, (uint)VertexBufferSizeOffset);
 
+            // The runtime places each buffer after the previous one's size rounded up to the
+            // alignment, starting at the vertex memory pool offset.
             vertexBuffer.Buffers = new List<Buffer>();
-            using (loader.TemporarySeek(BufferInfo.BufferOffset + BufferOffset, SeekOrigin.Begin))
+            long offset = memoryPoolOffset;
+            for (int buff = 0; buff < numBuffer; buff++)
             {
-                for (int buff = 0; buff < numBuffer; buff++)
-                {
-                    Buffer buffer = new Buffer();
-                    buffer.Data = new byte[1][];
-                    buffer.Stride = (ushort)StrideArray[buff].Stride;
+                Buffer buffer = new Buffer();
+                buffer.Data = new byte[1][];
+                buffer.Stride = (ushort)StrideArray[buff].Stride;
 
-                    loader.Align(vertexBuffer.GPUBufferAlignent);
-                    buffer.Data[0] = loader.ReadBytes((int)VertexBufferSizeArray[buff].Size);
-                    vertexBuffer.Buffers.Add(buffer);
-                }
+                uint size = VertexBufferSizeArray[buff].Size;
+                using (loader.TemporarySeek(BufferInfo.BufferOffset + offset, SeekOrigin.Begin))
+                    buffer.Data[0] = loader.ReadBytes((int)size);
+                offset += AlignUp(size, vertexBuffer.GPUBufferAlignent);
+                vertexBuffer.Buffers.Add(buffer);
             }
         }
 
@@ -74,72 +72,99 @@ namespace BfresLibrary.Switch
                 saver.SaveRelocateEntryToSection(saver.Position, 1, 1, 0, ResFileSwitchSaver.Section4, "Vertex Memory pool");
             saver.SaveMemoryPoolPointer();
 
-            saver.SaveRelocateEntryToSection(saver.Position, 4, 1, 0, ResFileSwitchSaver.Section1, "Vertex buffer info");
+            bool hasPointerArray = HasBufferPointerArray(saver.ResFile);
+            saver.SaveRelocateEntryToSection(saver.Position, hasPointerArray ? 4u : 3u, 1, 0, ResFileSwitchSaver.Section1, "Vertex buffer info");
             vertexBuffer.UnkBufferOffset = saver.SaveOffset();
-            vertexBuffer.UnkBuffer2Offset = saver.SaveOffset();
+            if (hasPointerArray)
+                vertexBuffer.UnkBuffer2Offset = saver.SaveOffset();
             vertexBuffer.BufferSizeArrayOffset = saver.SaveOffset();
             vertexBuffer.StideArrayOffset = saver.SaveOffset();
-            saver.Write(0L); //padding
+            saver.Write(0L); //user pointer
             saver.Write(SetVertexBufferArrayOffset(vertexBuffer, saver)); //Buffer Offset
             saver.Write((byte)vertexBuffer.Attributes.Count);
             saver.Write((byte)vertexBuffer.Buffers.Count);
             saver.Write((ushort)saver.CurrentIndex);
             saver.Write(vertexBuffer.VertexCount);
-            saver.Write((ushort)vertexBuffer.VertexSkinCount);
-            if (saver.ResFile.VersionMajor >= 10)
-                saver.Write((ushort)vertexBuffer.GPUBufferAlignent);
+            saver.Write(vertexBuffer.VertexSkinCount);
+            saver.Write((byte)0); //reserved
+            if (HasAlignmentField(saver.ResFile))
+                saver.Write(vertexBuffer.GPUBufferAlignent);
             else
                 saver.Write((ushort)0);
         }
 
         public static uint SetVertexBufferArrayOffset(VertexBuffer vertexBuffer, ResFileSaver saver)
         {
-            //Add all previous buffers until it reaches current one
-            //This adds all face buffers (those goes first) then the vertex ones
-
-            uint Pos = (uint)BufferInfo.BufferOffset;
-
-            uint TotalSize = Pos;
-
             if (saver.ExportedShape != null)
-            {
-                foreach (Mesh msh in saver.ExportedShape.Meshes)
-                {
-                    if (TotalSize % 8 != 0) TotalSize = TotalSize + (8 - (TotalSize % 8));
-                    TotalSize += (uint)msh.Data.Length;
-                }
-                return TotalSize - Pos;
-            }
+                return AlignUp(GetIndexBufferEnd(saver.ExportedShape.Meshes), GetAlignment(saver.ResFile, vertexBuffer));
 
-            foreach (Model fmdl in saver.ResFile.Models.Values)
+            foreach (var entry in GetBufferLayout(saver.ResFile))
             {
-                foreach (Shape shp in fmdl.Shapes.Values)
-                {
-                    foreach (Mesh msh in shp.Meshes)
-                    {
-                        if (TotalSize % 8 != 0) TotalSize = TotalSize + (8 - (TotalSize % 8));
-                        TotalSize += (uint)msh.Data.Length;
-                    }
-                }
+                if (entry.VertexBuffer == vertexBuffer)
+                    return entry.Offset;
             }
-            foreach (Model fmdl in saver.ResFile.Models.Values)
+            return 0;
+        }
+
+        /// <summary>
+        /// Computes where every vertex buffer of the file starts relative to the beginning of the buffer memory
+        /// pool data, which holds all index buffers followed by all vertex buffers.
+        /// </summary>
+        internal static List<(VertexBuffer VertexBuffer, uint Offset)> GetBufferLayout(ResFile resFile)
+        {
+            var meshes = resFile.Models.Values.SelectMany(x => x.Shapes.Values).SelectMany(x => x.Meshes);
+            uint position = GetIndexBufferEnd(meshes);
+
+            var layout = new List<(VertexBuffer, uint)>();
+            foreach (Model fmdl in resFile.Models.Values)
             {
                 foreach (VertexBuffer vtx in fmdl.VertexBuffers)
                 {
+                    uint alignment = GetAlignment(resFile, vtx);
+                    position = AlignUp(position, alignment);
+                    layout.Add((vtx, position));
                     foreach (Buffer buff in vtx.Buffers)
-                    {
-                        if (TotalSize % 8 != 0) TotalSize = TotalSize + (8 - (TotalSize % 8));
-                        if (vtx == vertexBuffer)
-                            return TotalSize - Pos;
-
-                        TotalSize += buff.Size;
-                    }
+                        position += AlignUp(buff.Size, alignment);
                 }
             }
-
-            TotalSize = TotalSize - Pos;
-
-            return TotalSize;   
+            return layout;
         }
+
+        static uint GetIndexBufferEnd(IEnumerable<Mesh> meshes)
+        {
+            uint position = 0;
+            foreach (Mesh msh in meshes)
+                position = AlignUp(position, 8) + (uint)msh.Data.Length;
+            return position;
+        }
+
+        /// <summary>
+        /// Gets the alignment the runtime uses between the buffers of the given vertex buffer.
+        /// </summary>
+        internal static ushort GetAlignment(ResFile resFile, VertexBuffer vertexBuffer)
+        {
+            if (HasAlignmentField(resFile) && vertexBuffer.GPUBufferAlignent != 0)
+                return vertexBuffer.GPUBufferAlignent;
+            return GetDefaultAlignment(resFile);
+        }
+
+        /// <summary>
+        /// Runtimes before 5.0 align vertex buffers to 64 bytes and later ones to 8.
+        /// </summary>
+        static ushort GetDefaultAlignment(ResFile resFile) => (ushort)(resFile.VersionMajor < 5 ? 64 : 8);
+
+        /// <summary>
+        /// ResVertexData gained a vertex buffer alignment field in 9.1, replacing reserved bytes.
+        /// </summary>
+        static bool HasAlignmentField(ResFile resFile) =>
+            resFile.VersionMajor > 9 || (resFile.VersionMajor == 9 && resFile.VersionMinor >= 1);
+
+        /// <summary>
+        /// ResVertexData has no vertex buffer pointer array before 3.0.
+        /// </summary>
+        internal static bool HasBufferPointerArray(ResFile resFile) => resFile.VersionMajor >= 3;
+
+        static uint AlignUp(uint value, uint alignment) =>
+            alignment <= 1 ? value : (value + alignment - 1) / alignment * alignment;
     }
 }

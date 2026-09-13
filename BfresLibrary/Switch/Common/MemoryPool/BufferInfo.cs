@@ -39,7 +39,7 @@ namespace BfresLibrary
             foreach (Model fmdl in saver.ResFile.Models.Values)
             {
                 foreach (VertexBuffer vtx in fmdl.VertexBuffers) {
-                    uint align = vtx.GPUBufferAlignent;
+                    uint align = Switch.VertexBufferParser.GetAlignment(saver.ResFile, vtx);
                     foreach (Buffer buff in vtx.Buffers) {
                         Size += (uint)buff.Data[0].Length;
                         if (Size % align != 0) Size = Size + (align - (Size % align));
@@ -82,7 +82,7 @@ namespace BfresLibrary
                 foreach (VertexBuffer vtx in fmdl.VertexBuffers) {
                     foreach (Buffer buff in vtx.Buffers) {
                         VtxBuffList.Add(buff.Data[0]);
-                        VtxAlignList.Add(vtx.GPUBufferAlignent);
+                        VtxAlignList.Add(Switch.VertexBufferParser.GetAlignment(saver.ResFile, vtx));
                     }
                 }
             }

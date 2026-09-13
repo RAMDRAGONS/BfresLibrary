@@ -982,8 +982,11 @@ namespace BfresLibrary.Switch.Core
                 if (SaveVertexBufferRuntimeData)
                     Seek(0x20);//Todo WTF is this
 
-                WriteOffset(vtx.UnkBuffer2Offset);
-                Write(unk);
+                if (VertexBufferParser.HasBufferPointerArray(ResFile))
+                {
+                    WriteOffset(vtx.UnkBuffer2Offset);
+                    Write(unk);
+                }
             }
             if (vtx.Attributes.Count > 0)
             {
@@ -1790,13 +1793,16 @@ namespace BfresLibrary.Switch.Core
         private void WriteVertexBuffer()
         {
             SaveVertexBufferPointer();
-            for (int i = 0; i < ResFile.BufferInfo.VertexBufferData.Length; i++)
+            foreach (var entry in VertexBufferParser.GetBufferLayout(ResFile))
             {
-                var align = ResFile.BufferInfo.VertexAlignments.Length > i ?
-                    ResFile.BufferInfo.VertexAlignments[i] : 8;
-
-                if (Position % align != 0) Position = Position + (align - (Position % align));
-                Write(ResFile.BufferInfo.VertexBufferData[i]);
+                uint alignment = VertexBufferParser.GetAlignment(ResFile, entry.VertexBuffer);
+                long offset = bufferInfoOffset + entry.Offset;
+                foreach (Buffer buffer in entry.VertexBuffer.Buffers)
+                {
+                    Position = offset;
+                    Write(buffer.Data[0]);
+                    offset += (buffer.Size + alignment - 1) / alignment * alignment;
+                }
             }
         }
 
