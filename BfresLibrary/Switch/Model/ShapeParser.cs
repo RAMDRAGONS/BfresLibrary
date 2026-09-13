@@ -27,7 +27,8 @@ namespace BfresLibrary.Switch
             shape.KeyShapes = loader.LoadDictValues<KeyShape>();
             long BoundingBoxArrayOffset = loader.ReadOffset();
             long RadiusOffset = 0;
-            if (loader.ResFile.VersionMajor > 2)
+            shape.RadiusArray = new List<float>();
+            if (HasRadiusArray(loader.ResFile))
             {
                 RadiusOffset = loader.ReadOffset();
                 long UserPointer = loader.ReadInt64();
@@ -48,14 +49,11 @@ namespace BfresLibrary.Switch
             byte numMesh = loader.ReadByte();
             byte numKeys = loader.ReadByte();
             shape.TargetAttribCount = loader.ReadByte();
-            if (loader.ResFile.VersionMajor <= 2)
-                loader.Seek(2); //padding
-            else if (loader.ResFile.VersionMajor >= 9)
+            if (!HasRadiusArray(loader.ResFile) || loader.ResFile.VersionMajor >= 9)
                 loader.Seek(2); //padding
             else
                 loader.Seek(6); //padding
 
-            shape.RadiusArray = new List<float>();
             if (RadiusOffset != 0 && numMesh > 0)
             {
                 using (loader.TemporarySeek(RadiusOffset, SeekOrigin.Begin))
@@ -129,7 +127,8 @@ namespace BfresLibrary.Switch
             shape.RadiusArray = boundingRadius.ToList();
             shape.SubMeshBoundings = boundings.ToList();
 
-            saver.SaveRelocateEntryToSection(saver.Position, 8, 1, 0, ResFileSwitchSaver.Section1, "FSHP");
+            bool hasRadiusArray = HasRadiusArray(saver.ResFile);
+            saver.SaveRelocateEntryToSection(saver.Position, hasRadiusArray ? 8u : 7u, 1, 0, ResFileSwitchSaver.Section1, "FSHP");
             saver.SaveString(shape.Name);
             saver.Write(shape.VertexBuffer.Position);
             shape.PosMeshArrayOffset = saver.SaveOffset();
@@ -137,8 +136,16 @@ namespace BfresLibrary.Switch
             shape.PosKeyShapesOffset = saver.SaveOffset();
             shape.PosKeyShapeDictOffset = saver.SaveOffset();
             shape.PosSubMeshBoundingsOffset = saver.SaveOffset();
-            shape.PosRadiusArrayOffset = saver.SaveOffset();
-            saver.Write(0L); //padding
+            if (hasRadiusArray)
+            {
+                shape.PosRadiusArrayOffset = saver.SaveOffset();
+                saver.Write(0L); //user pointer
+            }
+            else
+            {
+                saver.Write(0L); //user pointer
+                saver.Write(shape.RadiusArray.Count > 0 ? shape.RadiusArray.Max() : 0f);
+            }
             if (saver.ResFile.VersionMajor < 9)
                 saver.Write(shape.Flags, true);
             saver.Write((ushort)saver.CurrentIndex);
@@ -151,10 +158,15 @@ namespace BfresLibrary.Switch
             saver.Write((byte)shape.KeyShapes.Count);
             saver.Write(shape.TargetAttribCount);
 
-             if (saver.ResFile.VersionMajor >= 9)
+            if (!hasRadiusArray || saver.ResFile.VersionMajor >= 9)
                 saver.Seek(2); //padding
             else
                 saver.Seek(6); //padding
         }
+
+        /// <summary>
+        /// Shapes before 5.0 store a single bounding radius in place of the per mesh radius array.
+        /// </summary>
+        internal static bool HasRadiusArray(ResFile resFile) => resFile.VersionMajor >= 5;
     }
 }

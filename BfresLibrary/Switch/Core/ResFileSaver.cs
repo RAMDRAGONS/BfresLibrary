@@ -912,7 +912,7 @@ namespace BfresLibrary.Switch.Core
                 ((IResData)shp.KeyShapes).Save(this);
 
             }
-            if (shp.RadiusArray.Count > 0)
+            if (shp.RadiusArray.Count > 0 && ShapeParser.HasRadiusArray(ResFile))
             {
                 WriteOffset(shp.PosRadiusArrayOffset);
                 if (ResFile.VersionMajor >= 10)
