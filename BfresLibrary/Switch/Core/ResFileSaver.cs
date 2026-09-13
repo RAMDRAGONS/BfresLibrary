@@ -1859,19 +1859,23 @@ namespace BfresLibrary.Switch.Core
                 {
                     SatisfyOffsets(entry.Value.Offsets, (uint)Position);
                 }
+                // nn::util::BinTString stores its length in characters of its element type, which is bytes for
+                // UTF-8 rather than UTF-16 code units.
+                Encoding encoding = entry.Value.Encoding ?? Encoding;
+                short length = (short)(encoding.GetByteCount(entry.Key) / encoding.GetByteCount("\0"));
                 if (isWide)
                 {
-                    Write((short)entry.Key.Length);
+                    Write(length);
                     Write((short)0);
                     Write(entry.Value.Encoding.GetBytes(entry.Key));
                     Write(0);
                     continue;
                 }
 
-                Write((short)entry.Key.Length);
+                Write(length);
 
                 // Write the name.
-                Write(entry.Key, BinaryStringFormat.ZeroTerminated, entry.Value.Encoding ?? Encoding);
+                Write(entry.Key, BinaryStringFormat.ZeroTerminated, encoding);
                 Align(2);
             }
 
