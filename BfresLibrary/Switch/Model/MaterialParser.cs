@@ -43,8 +43,8 @@ namespace BfresLibrary.Switch
                 mat.Flags = loader.ReadEnum<MaterialFlags>(true);
             ushort idx = loader.ReadUInt16();
             ushort numRenderInfo = loader.ReadUInt16();
-            byte numTextureRef = loader.ReadByte();
             byte numSampler = loader.ReadByte();
+            byte numTextureRef = loader.ReadByte();
             ushort numShaderParam = loader.ReadUInt16();
             ushort numShaderParamVolatile = loader.ReadUInt16();
             ushort sizParamSource = loader.ReadUInt16();
@@ -70,8 +70,8 @@ namespace BfresLibrary.Switch
             mat.ShaderParamData = loader.LoadCustom(() => loader.ReadBytes(sizParamSource), (uint)SourceParamOffset);
 
             mat.VolatileFlags = loader.LoadCustom(() => loader.ReadBytes((int)Math.Ceiling(numShaderParam / 8f)), (uint)VolatileFlagsOffset);
-            mat.TextureSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numTextureRef), (uint)SamplerSlotArrayOffset);
-            mat.SamplerSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numSampler), (uint)TexSlotArrayOffset);
+            mat.SamplerSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numSampler), (uint)SamplerSlotArrayOffset);
+            mat.TextureSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numTextureRef), (uint)TexSlotArrayOffset);
         }
 
         public static void Save(ResFileSwitchSaver saver, Material mat)

@@ -152,8 +152,8 @@ namespace BfresLibrary.Switch
             foreach (var sampler in mat.Samplers)
                 sampler.Value.Name = sampler.Key;
 
-            mat.TextureSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numTextureRef), (uint)SamplerSlotArrayOffset);
-            mat.SamplerSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numSampler), (uint)TexSlotArrayOffset);
+            mat.SamplerSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numSampler), (uint)SamplerSlotArrayOffset);
+            mat.TextureSlotArray = loader.LoadCustom(() => loader.ReadInt64s(numTextureRef), (uint)TexSlotArrayOffset);
 
             if (info != null && info.ShaderAssign != null)
             {
