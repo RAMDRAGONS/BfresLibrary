@@ -367,6 +367,15 @@ namespace BfresLibrary.Core
         public virtual uint ReadSize() => ReadUInt32();
 
         public virtual string ReadString(Encoding encoding = null) {
+            if (encoding is UnicodeEncoding)
+            {
+                // Decode wide strings from code units read in the file's byte order, as reading them as raw bytes
+                // applies the byte order twice.
+                var text = new StringBuilder();
+                for (ushort unit = ReadUInt16(); unit != 0; unit = ReadUInt16())
+                    text.Append((char)unit);
+                return text.ToString();
+            }
             return ReadString(BinaryStringFormat.ZeroTerminated, encoding);
         }
 

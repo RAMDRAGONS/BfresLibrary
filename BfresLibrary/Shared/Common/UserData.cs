@@ -230,10 +230,11 @@ namespace BfresLibrary
                         _value = loader.LoadStrings(count, Encoding.UTF8);
                         break;
                     case UserDataType.WString:
-                        _value = loader.LoadStrings(count, Encoding.Unicode);
+                        _value = loader.LoadStrings(count, Encoding.BigEndianUnicode);
                         break;
                     case UserDataType.Byte:
-                        _value = loader.ReadBytes(count);
+                        // Streams store their byte size ahead of the data instead of using the count.
+                        _value = loader.ReadBytes((int)loader.ReadUInt32());
                         break;
                 }
             }
@@ -284,9 +285,10 @@ namespace BfresLibrary
                         saver.SaveStrings((string[])_value, Encoding.UTF8);
                         break;
                     case UserDataType.WString:
-                        saver.SaveStrings((string[])_value, Encoding.Unicode);
+                        saver.SaveStrings((string[])_value, Encoding.BigEndianUnicode);
                         break;
                     case UserDataType.Byte:
+                        saver.Write(((byte[])_value).Length);
                         saver.Write((byte[])_value);
                         break;
                 }
