@@ -255,42 +255,46 @@ namespace BfresLibrary
         internal ResDict<MaterialAnim> MaterialAnims { get; set; } = new ResDict<MaterialAnim>();
 
         /// <summary>
-        /// Gets or sets the major revision of the BFRES structure formats.
+        /// Gets the version in the form the SDK defines it: major.minor.micro for Switch files
+        /// (nn::util::BinVersion) and major.minor.micro.binaryBugfix for Wii U files.
         /// </summary>
         [Browsable(true)]
         [ReadOnly(true)]
         [Category("Version")]
-        [DisplayName("Version Major")]
+        [DisplayName("Version")]
         public string VersioFull
         {
             get
             {
-                return $"{VersionMajor},{VersionMajor2},{VersionMinor},{VersionMinor2}";
+                if (IsPlatformSwitch)
+                    return $"{VersionMajor}.{VersionMinor}.{VersionMinor2}";
+                return $"{VersionMajor}.{VersionMajor2}.{VersionMinor}.{VersionMinor2}";
             }
         }
         /// <summary>
-        /// Gets or sets the second major revision of the BFRES structure formats.
+        /// Gets or sets the major revision of the BFRES structure formats.
         /// </summary>
         [Browsable(true)]
         [Category("Version")]
         [DisplayName("Version Major")]
         public uint VersionMajor { get; set; }
         /// <summary>
-        /// Gets or sets the second major revision of the BFRES structure formats.
+        /// Gets or sets the minor revision of Wii U files. Switch versions have no second major component and
+        /// leave this unused.
         /// </summary>
         [Browsable(true)]
         [Category("Version")]
         [DisplayName("Version Major 2")]
         public uint VersionMajor2 { get; set; }
         /// <summary>
-        /// Gets or sets the minor revision of the BFRES structure formats.
+        /// Gets or sets the minor revision of Switch files, or the micro revision of Wii U files.
         /// </summary>
         [Browsable(true)]
         [Category("Version")]
         [DisplayName("Version Minor")]
         public uint VersionMinor { get; set; }
         /// <summary>
-        /// Gets or sets the second minor revision of the BFRES structure formats.
+        /// Gets or sets the micro revision of Switch files, or the binary bugfix revision of Wii U files.
         /// </summary>
         [Browsable(true)]
         [Category("Version")]
