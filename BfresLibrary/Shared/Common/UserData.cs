@@ -174,16 +174,22 @@ namespace BfresLibrary
                 Name = loader.LoadString();
                 uint DataOffset = loader.ReadOffset();
                 uint count = 0;
-                if (loader.ResFile.VersionMajor <= 2)
+                if (IsG3dSwitchLayout(loader.ResFile))
                 {
-                    char[] Reserved = loader.ReadChars(8);
-                    count = loader.ReadUInt32();
-                    Type = (UserDataType)loader.ReadUInt32();
+                    uint streamSize = loader.ReadUInt32();
+                    loader.Seek(4);
+                    ushort elementCount = loader.ReadUInt16();
+                    Type = (UserDataType)loader.ReadByte();
+                    loader.Seek(5);
+                    count = Type == UserDataType.Byte ? streamSize : elementCount;
                 }
                 else
                 {
                     count = loader.ReadUInt32();
-                    Type = loader.ReadEnum<UserDataType>(true);
+                    byte type = loader.ReadByte();
+                    // nn::gfx::ResUserData has no wide strings and uses 3 for byte streams. Files that stored the
+                    // g3d stream value 4 are read the same way.
+                    Type = type == 3 || type == 4 ? UserDataType.Byte : (UserDataType)type;
                     char[] Reserved = loader.ReadChars(43);
                 }
 
@@ -202,7 +208,7 @@ namespace BfresLibrary
                         _value = loader.LoadCustom(() => loader.LoadStrings((int)count, Encoding.UTF8), DataOffset);
                         break;
                     case UserDataType.WString:
-                        _value = loader.LoadCustom(() => loader.LoadStrings((int)count, Encoding.Unicode), DataOffset);
+                        _value = loader.LoadCustom(() => loader.LoadStrings((int)count, Encoding.UTF32), DataOffset);
                         break;
                 }
             }
@@ -237,11 +243,28 @@ namespace BfresLibrary
         {
             if (saver.IsSwitch)
             {
+                int length = _value != null ? ((Array)_value).Length : 0; // Unsafe cast, but _value should always be Array.
                 saver.SaveString(Name);
                 DataOffset = saver.SaveOffset();
-                saver.Write(_value != null ? ((Array)_value).Length : 0); // Unsafe cast, but _value should always be Array.
-                saver.Write(Type, true);
-                saver.Seek(43);
+                if (IsG3dSwitchLayout(saver.ResFile))
+                {
+                    saver.Write(Type == UserDataType.Byte ? length : 0);
+                    saver.Seek(4);
+                    saver.Write((ushort)Math.Min(length, ushort.MaxValue));
+                    saver.Write(Type, true);
+                    saver.Seek(5);
+                }
+                else
+                {
+                    saver.Write(length);
+                    switch (Type)
+                    {
+                        case UserDataType.Byte: saver.Write((byte)3); break;
+                        case UserDataType.WString: saver.Write((byte)UserDataType.String); break;
+                        default: saver.Write(Type, true); break;
+                    }
+                    saver.Seek(43);
+                }
             }
             else
             {
@@ -272,6 +295,13 @@ namespace BfresLibrary
 
         internal long DataOffset;
 
+        /// <summary>
+        /// Switch files before 5.0 use the 32 byte nn::g3d::ResUserData, which keeps a 16 bit element count, the
+        /// byte stream size next to the data pointer, and a wide string type holding 32 bit characters. Later files
+        /// use the 64 byte nn::gfx::ResUserData.
+        /// </summary>
+        internal static bool IsG3dSwitchLayout(ResFile resFile) => resFile.VersionMajor < 5;
+
         internal void SaveData(ResFileSaver saver)
         {
             switch (Type)
@@ -286,7 +316,8 @@ namespace BfresLibrary
                     saver.SaveStrings((string[])_value, Encoding.UTF8);
                     break;
                 case UserDataType.WString:
-                    saver.SaveStrings((string[])_value, Encoding.Unicode);
+                    // nn::gfx::ResUserData only stores UTF-8 strings.
+                    saver.SaveStrings((string[])_value, IsG3dSwitchLayout(saver.ResFile) ? Encoding.UTF32 : Encoding.UTF8);
                     break;
                 case UserDataType.Byte:
                     saver.Write((byte[])_value);

@@ -151,6 +151,15 @@ namespace BfresLibrary.Switch.Core
 
         public override string ReadString(Encoding encoding = null) {
             short size = ReadInt16();
+            if (encoding is UTF32Encoding)
+            {
+                // Wide strings are aligned to their 4 byte characters and end with a 4 byte terminator.
+                ReadInt16();
+                var bytes = new List<byte>();
+                for (uint c = ReadUInt32(); c != 0; c = ReadUInt32())
+                    bytes.AddRange(BitConverter.GetBytes(c));
+                return encoding.GetString(bytes.ToArray());
+            }
             return ReadString(BinaryStringFormat.ZeroTerminated, encoding);
         }
     }

@@ -1593,7 +1593,8 @@ namespace BfresLibrary.Switch.Core
         private void SaveUserData(ResDict<UserData> userData, long Target)
         {
             Align(8);
-            SaveRelocateEntryToSection(Position, 2, (uint)userData.Count, 6, Section1, "user Data");
+            uint reservedWords = UserData.IsG3dSwitchLayout(ResFile) ? 2u : 6u;
+            SaveRelocateEntryToSection(Position, 2, (uint)userData.Count, reservedWords, Section1, "user Data");
             WriteOffset(Target);
             foreach (UserData data in userData.Values)
                 ((IResData)data).Save(this);
@@ -1848,11 +1849,25 @@ namespace BfresLibrary.Switch.Core
                 if (entry.Key == _fileName)
                     _ofsFileNameString = (uint)Position;
 
+                // Wide strings are aligned to their 4 byte characters and end with a 4 byte terminator.
+                bool isWide = entry.Value.Encoding is UTF32Encoding;
+                if (isWide)
+                    Align(4);
+
                 // Align and satisfy offsets.
                 using (TemporarySeek())
                 {
                     SatisfyOffsets(entry.Value.Offsets, (uint)Position);
                 }
+                if (isWide)
+                {
+                    Write((short)entry.Key.Length);
+                    Write((short)0);
+                    Write(entry.Value.Encoding.GetBytes(entry.Key));
+                    Write(0);
+                    continue;
+                }
+
                 Write((short)entry.Key.Length);
 
                 // Write the name.
